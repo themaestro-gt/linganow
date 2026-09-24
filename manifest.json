@@ -1,7 +1,7 @@
 {
   "name": "Linga Now Onboarding",
   "short_name": "Linga Now",
-  "start_url": "./linga-now-onboarding.html",
+  "start_url": "./linga-now-prototype.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
