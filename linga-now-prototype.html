@@ -810,7 +810,7 @@ function ParentCategorySheet({open,onClose,options,value,onSelect}){
   ),document.body);
 }
 function SortLevelsSheet({open,onClose,levels,onApply}){
-  // One pass over every level: pick an order per level (Current keeps it), then apply them together.
+  // One pass over every level: pick an order for any level (tap again to clear), then apply them together.
   let vh=useSheetMaxHeight(85);
   let[mounted,setMounted]=(0,o.useState)(open),[visible,setVisible]=(0,o.useState)(!1),[pick,setPick]=(0,o.useState)({});
   (0,o.useEffect)(()=>{if(open){setPick({});setMounted(!0);let a,u;return a=requestAnimationFrame(()=>{u=requestAnimationFrame(()=>setVisible(!0))}),()=>{cancelAnimationFrame(a),cancelAnimationFrame(u)}}else{setVisible(!1);let t=setTimeout(()=>setMounted(!1),300);return()=>clearTimeout(t)}},[open]);
@@ -822,10 +822,10 @@ function SortLevelsSheet({open,onClose,levels,onApply}){
       o.default.createElement("div",{className:"flex items-center justify-center shrink-0",style:{padding:"10px 0 4px"}},o.default.createElement("div",{style:{width:"36px",height:"4px",borderRadius:"2px",backgroundColor:q.borderDefault}})),
       o.default.createElement("div",{className:"flex-1 overflow-y-auto no-scrollbar",style:{padding:"8px 24px 8px"}},
         o.default.createElement("span",{className:"text-[14px] font-semibold",style:{fontFamily:S,color:q.headings,display:"block",margin:"8px 0 2px"}},"Sort"),
-        o.default.createElement("span",{className:"text-[13px]",style:{fontFamily:S,color:q.tertiary,display:"block",margin:"0 0 18px"}},"Choose an order for each level, then apply."),
+        o.default.createElement("span",{className:"text-[13px]",style:{fontFamily:S,color:q.tertiary,display:"block",margin:"0 0 18px"}},"Pick an order for any level. Levels you leave blank keep their order."),
         o.default.createElement("div",{className:"flex flex-col",style:{gap:"18px"}},levels.map(lv=>o.default.createElement("div",{key:lv.key,"data-sort-level":lv.key,className:"flex flex-col gap-2"},
           o.default.createElement(cl,null,lv.label),
-          o.default.createElement("div",{className:"flex flex-wrap",style:{gap:"6px"}},[["","Current"],...lv.options].map(([k,label])=>{let sel=(pick[lv.key]||"")===k;return o.default.createElement("button",{key:k||"current",type:"button",onClick:()=>setPick(cur=>({...cur,[lv.key]:k})),className:"active:opacity-80",style:{fontFamily:S,fontSize:"13px",fontWeight:600,height:"34px",padding:"0 11px",outline:"none",borderRadius:"17px",border:`1px solid ${sel?q.action:q.borderDefault}`,backgroundColor:sel?q.action:"#fff",color:sel?"#fff":q.tertiary}},label)}))))) ),
+          o.default.createElement("div",{className:"flex flex-wrap",style:{gap:"8px"}},lv.options.map(([k,label])=>{let sel=pick[lv.key]===k;return o.default.createElement("button",{key:k,type:"button","aria-pressed":sel,onClick:()=>setPick(cur=>({...cur,[lv.key]:cur[lv.key]===k?"":k})),className:"active:opacity-80",style:{fontFamily:S,fontSize:"14px",fontWeight:600,height:"34px",padding:"0 14px",outline:"none",borderRadius:"17px",border:`1px solid ${sel?q.action:q.borderDefault}`,backgroundColor:sel?q.action:"#fff",color:sel?"#fff":q.tertiary}},label)}))))) ),
       o.default.createElement("div",{className:"shrink-0",style:{padding:"16px 24px 28px"}},o.default.createElement(ve,{disabled:!any,onClick:()=>{onApply(pick);onClose()}},"Apply"))
     )
   ),document.body);
