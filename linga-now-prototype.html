@@ -937,7 +937,7 @@ function ReorderScreen({cats,catKey,catName,catIcon,itemKey,initialTab,onDone,on
       o.default.createElement("span",{className:"flex-1 min-w-0 font-semibold",style:{fontFamily:S,fontSize:"16px",color:q.body,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},subName(sb)),
       o.default.createElement("span",{className:"text-[14px] shrink-0",style:{fontFamily:S,color:q.tertiary}},count(sb.items.length,"item","items")),chevron(isOpen)),
     isOpen&&itemSection("s:"+sb.key,sb.items,"48px"))};
-  let catUnit=c=>{let ck=catKey(c),k="c:"+ck,dr=dragKey===k,isOpen=open.has(k),Icon=catIcon&&catIcon(c);return o.default.createElement("div",{key:k,"data-ok":k,className:"w-full bg-white rounded-[12px] border",style:{borderColor:q.borderDefault,overflow:dragKind==="i"?"visible":"hidden",...lift(dr,12)}},
+  let catUnit=c=>{let ck=catKey(c),k="c:"+ck,dr=dragKey===k,isOpen=open.has(k),Icon=catIcon&&catIcon(c);return o.default.createElement("div",{key:k,"data-ok":k,className:"w-full bg-white rounded-[12px] border",style:{borderColor:q.borderDefault,overflow:dragKind==="i"?"visible":"hidden",boxShadow:"0 1px 2px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.05)",...lift(dr,12)}},
     o.default.createElement("div",{onClick:()=>toggle(k),"data-outline-cat":catName(c),className:"w-full flex items-center gap-2 px-4 py-3 cursor-pointer"},handle(k,"c","cats"),
       Icon&&o.default.createElement(Icon,{size:18,color:q.body,className:"shrink-0"}),
       o.default.createElement("span",{className:"flex-1 min-w-0 text-[16px] font-bold",style:{fontFamily:S,color:q.body,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},catName(c)),
