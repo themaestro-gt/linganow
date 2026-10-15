@@ -827,48 +827,119 @@ function ReorderSortSheet({open,onClose,title,subtitle,options,onSelect}){
   ),document.body);
 }
 function ReorderScreen({cats,catKey,catName,catIcon,itemKey,initialTab,onDone,onCancel}){
-  let[work,setWork]=(0,o.useState)(cats),[tab,setTab]=(0,o.useState)(initialTab||"categories"),[sortOpen,setSortOpen]=(0,o.useState)(!1);
+  // One-page outline: categories (collapsed by default) > own items + subcategories > items.
+  // Each row only moves among rows of its own kind: categories among categories, subcategories within
+  // their category, items into any open item section.
+  let[work,setWork]=(0,o.useState)(cats),[sortOpen,setSortOpen]=(0,o.useState)(!1),[dragKey,setDragKey]=(0,o.useState)(null),[dragKind,setDragKind]=(0,o.useState)(null);
   let subName=sb=>sb.label||sb.name,count=(n,one,many)=>n+" "+(n===1?one:many);
   let hasSubs=work.some(c=>(c.subs||[]).length>0);
-  if(tab==="subcategories"&&!hasSubs)tab="categories";
-  // a category that only holds subcategories gets no section of its own in the Items tab
+  let openKeys=cs=>cs.flatMap(c=>["c:"+catKey(c),...(c.subs||[]).map(sb=>"s:"+sb.key)]);
+  let[open,setOpen]=(0,o.useState)(()=>new Set(initialTab==="items"?openKeys(cats):[]));
+  let toggle=k=>setOpen(cur=>{let n=new Set(cur);n.has(k)?n.delete(k):n.add(k);return n});
+  let allOpen=openKeys(work).every(k=>open.has(k));
+  // a category that only holds subcategories gets no item section of its own
   let ownSection=(0,o.useRef)(null);if(!ownSection.current)ownSection.current=new Set(cats.filter(c=>c.items.length>0||!(c.subs||[]).length).map(catKey));
+  // ---- moves ----
+  let sections=ws=>ws.flatMap(c=>[{id:"c:"+catKey(c),items:c.items},...(c.subs||[]).map(sb=>({id:"s:"+sb.key,items:sb.items}))]);
+  let setSection=(ws,id,items)=>ws.map(c=>id==="c:"+catKey(c)?{...c,items}:(c.subs||[]).some(sb=>"s:"+sb.key===id)?{...c,subs:c.subs.map(sb=>"s:"+sb.key===id?{...sb,items}:sb)}:c);
+  let applyMove=(ws,kind,key,to,idx)=>{
+    if(kind==="c"){let fi=ws.findIndex(c=>"c:"+catKey(c)===key);if(fi<0||fi===idx)return null;let n=ws.slice(),[m]=n.splice(fi,1);n.splice(idx,0,m);return n}
+    if(kind==="s"){let ck=to.slice(5),ci=ws.findIndex(c=>catKey(c)===ck);if(ci<0)return null;let subs=ws[ci].subs||[],fi=subs.findIndex(sb=>"s:"+sb.key===key);if(fi<0||fi===idx)return null;let n=subs.slice(),[m]=n.splice(fi,1);n.splice(idx,0,m);return ws.map((c,k)=>k===ci?{...c,subs:n}:c)}
+    let secs=sections(ws),from=secs.find(sc=>sc.items.some(m=>"i:"+itemKey(m)===key));if(!from)return null;
+    let fi=from.items.findIndex(m=>"i:"+itemKey(m)===key);if(from.id===to&&fi===idx)return null;
+    let moving=from.items[fi],nw=setSection(ws,from.id,from.items.filter((_,k)=>k!==fi));
+    let dest=sections(nw).find(sc=>sc.id===to);if(!dest)return null;
+    let ni=dest.items.slice();ni.splice(Math.min(idx,ni.length),0,moving);return setSection(nw,to,ni);
+  };
+  // ---- drag ----
+  let rootRef=(0,o.useRef)(null),st=(0,o.useRef)(null),workRef=(0,o.useRef)(work);workRef.current=work;
+  let findEl=k=>rootRef.current&&rootRef.current.querySelector('[data-ok="'+CSS.escape(k)+'"]');
+  let place=()=>{let d=st.current;if(!d)return;let el=findEl(d.key);if(!el)return;let cur=parseFloat(el.dataset.dy||"0");let top=el.getBoundingClientRect().top-cur;let dy=d.y-d.grab-top;el.dataset.dy=String(dy);el.style.transform="translateY("+dy+"px)"};
+  (0,o.useLayoutEffect)(()=>{place()});
+  let start=(e,key,kind,home)=>{
+    e.preventDefault();e.stopPropagation();
+    let el=e.currentTarget.closest("[data-ok]"),r=el.getBoundingClientRect();
+    st.current={key,kind,home,y:e.clientY,grab:e.clientY-r.top,raf:0,openBefore:open};
+    // dragging a category (or a subcategory) collapses its level so the list stays short
+    if(kind==="c")setOpen(new Set());
+    else if(kind==="s"){let c=work.find(c=>"subs:"+catKey(c)===home);setOpen(cur=>{let n=new Set(cur);((c&&c.subs)||[]).forEach(sb=>n.delete("s:"+sb.key));return n})}
+    delete el.dataset.dy;el.style.transition="";
+    setDragKey(key);setDragKind(kind);
+    let sc=rootRef.current&&rootRef.current.parentElement;
+    while(sc&&sc!==document.body&&!/(auto|scroll)/.test(getComputedStyle(sc).overflowY))sc=sc.parentElement;
+    if(sc===document.body)sc=null;
+    let evaluate=()=>{
+      let d=st.current;if(!d)return;place();
+      let root=rootRef.current;if(!root)return;
+      let conts=[root,...root.querySelectorAll('[data-ock="'+d.kind+'"]')].filter(g=>g.getAttribute("data-ock")===d.kind);
+      if(d.kind!=="i")conts=conts.filter(g=>g.getAttribute("data-oc")===d.home);
+      let best=null,bd=1/0;conts.forEach(g=>{let b=g.getBoundingClientRect();let dd=d.y<b.top?b.top-d.y:d.y>b.bottom?d.y-b.bottom:0;if(dd<bd){bd=dd;best=g}});
+      if(!best)return;
+      let units=Array.from(best.children).filter(x=>x.hasAttribute("data-ok")&&x.getAttribute("data-ok")!==d.key);
+      let idx=0;units.forEach(x=>{let b=x.getBoundingClientRect();if(b.top+b.height/2<d.y)idx++});
+      let nw=applyMove(workRef.current,d.kind,d.key,best.getAttribute("data-oc"),idx);
+      if(nw){workRef.current=nw;setWork(nw)}
+    };
+    let move=ev=>{let d=st.current;if(!d)return;d.y=ev.clientY;evaluate()};
+    let tick=()=>{
+      let d=st.current;if(!d)return;
+      if(sc){let b=sc.getBoundingClientRect(),edge=72,v=0;
+        if(d.y<b.top+edge)v=-Math.ceil((b.top+edge-d.y)/5);else if(d.y>b.bottom-edge)v=Math.ceil((d.y-(b.bottom-edge))/5);
+        if(v){let before=sc.scrollTop;sc.scrollTop+=v;if(sc.scrollTop!==before)evaluate()}}
+      d.raf=requestAnimationFrame(tick);
+    };
+    st.current.raf=requestAnimationFrame(tick);
+    let up=()=>{
+      let d0=st.current;if(d0&&d0.raf)cancelAnimationFrame(d0.raf);
+      st.current=null;
+      window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);window.removeEventListener("pointercancel",up);
+      let el2=findEl(key);if(el2){el2.style.transition="transform 150ms ease";el2.style.transform="";delete el2.dataset.dy;setTimeout(()=>{el2.style.transition=""},170)}
+      if(d0&&(kind==="c"||kind==="s"))setOpen(d0.openBefore);
+      setDragKey(null);setDragKind(null);
+    };
+    window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);window.addEventListener("pointercancel",up);
+  };
+  // ---- rows ----
+  let price=m=>"$"+(parseFloat(m.price)||0).toFixed(2);
+  let handle=(key,kind,home)=>o.default.createElement("button",{type:"button","aria-label":"Drag to reorder",onPointerDown:e=>start(e,key,kind,home),onClick:e=>e.stopPropagation(),className:"shrink-0 flex items-center justify-center",style:{width:"28px",height:"32px",marginLeft:"-6px",touchAction:"none",cursor:dragKey===key?"grabbing":"grab"}},o.default.createElement(GripIco,{size:20,color:q.tertiary}));
+  let chevron=isOpen=>o.default.createElement(Wa,{size:20,color:q.tertiary,className:"shrink-0",style:{transform:isOpen?"rotate(90deg)":"none",transition:"transform 150ms ease"}});
+  let lift=(dr,r)=>dr?{position:"relative",zIndex:5,boxShadow:"0 8px 20px rgba(0,0,0,0.18)",borderRadius:r+"px"}:{position:"relative"};
+  let itemUnit=(m,indent)=>{let k="i:"+itemKey(m),dr=dragKey===k;return o.default.createElement("div",{key:k,"data-ok":k,style:lift(dr,10)},
+    o.default.createElement("div",{className:"w-full flex items-center gap-2 px-4 py-3 bg-white",style:{borderTop:dr?"none":`1px solid ${q.borderDefault}`,borderRadius:dr?"10px":0,paddingLeft:indent||void 0}},handle(k,"i"),
+      o.default.createElement("span",{className:"flex-1 min-w-0 text-[16px]",style:{fontFamily:S,color:q.body,opacity:m.excluded?.45:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},m.name),
+      o.default.createElement("span",{className:"text-[16px] shrink-0",style:{fontFamily:S,color:q.body,opacity:m.excluded?.45:1}},price(m))))};
+  let itemSection=(id,items,indent)=>o.default.createElement("div",{"data-oc":id,"data-ock":"i",style:{display:"flex",flexDirection:"column"}},
+    items.length?items.map(m=>itemUnit(m,indent)):o.default.createElement("div",{className:"flex items-center justify-center",style:{height:"46px",borderTop:`1px solid ${q.borderDefault}`,fontFamily:S,fontSize:"13px",color:q.tertiary}},"Drag items here"));
+  let subUnit=(c,sb)=>{let k="s:"+sb.key,dr=dragKey===k,isOpen=open.has(k);return o.default.createElement("div",{key:k,"data-ok":k,style:{...lift(dr,10),overflow:dr?"hidden":"visible"}},
+    o.default.createElement("div",{onClick:()=>toggle(k),"data-outline-sub":subName(sb),className:"w-full flex items-center gap-2 px-4 py-3 cursor-pointer",style:{backgroundColor:"#f7f6f6",borderTop:dr?"none":`1px solid ${q.borderDefault}`}},handle(k,"s","subs:"+catKey(c)),
+      sb.icon&&o.default.createElement(sb.icon,{size:16,color:q.body,className:"shrink-0"}),
+      o.default.createElement("span",{className:"flex-1 min-w-0 font-semibold",style:{fontFamily:S,fontSize:"16px",color:q.body,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},subName(sb)),
+      o.default.createElement("span",{className:"text-[14px] shrink-0",style:{fontFamily:S,color:q.tertiary}},count(sb.items.length,"item","items")),chevron(isOpen)),
+    isOpen&&itemSection("s:"+sb.key,sb.items,"48px"))};
+  let catUnit=c=>{let ck=catKey(c),k="c:"+ck,dr=dragKey===k,isOpen=open.has(k),Icon=catIcon&&catIcon(c);return o.default.createElement("div",{key:k,"data-ok":k,className:"w-full bg-white rounded-[12px] border",style:{borderColor:q.borderDefault,overflow:dragKind==="i"?"visible":"hidden",...lift(dr,12)}},
+    o.default.createElement("div",{onClick:()=>toggle(k),"data-outline-cat":catName(c),className:"w-full flex items-center gap-2 px-4 py-3 cursor-pointer"},handle(k,"c","cats"),
+      Icon&&o.default.createElement(Icon,{size:18,color:q.body,className:"shrink-0"}),
+      o.default.createElement("span",{className:"flex-1 min-w-0 text-[16px] font-bold",style:{fontFamily:S,color:q.body,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},catName(c)),
+      o.default.createElement("span",{className:"text-[14px] shrink-0",style:{fontFamily:S,color:q.tertiary}},count(catAllItems(c).length,"item","items")),chevron(isOpen)),
+    isOpen&&ownSection.current.has(ck)&&itemSection("c:"+ck,c.items,null),
+    isOpen&&(c.subs||[]).length>0&&o.default.createElement("div",{"data-oc":"subs:"+ck,"data-ock":"s",style:{display:"flex",flexDirection:"column"}},c.subs.map(sb=>subUnit(c,sb))))};
+  // ---- sort ----
   let sortCats=k=>setWork(cs=>{let byKey=new Map(cs.map(c=>[catKey(c),c]));return sortRows(cs.map(c=>({name:catName(c),_k:catKey(c)})),k).map(x=>byKey.get(x._k))});
   let sortSubs=k=>setWork(cs=>cs.map(c=>c.subs?{...c,subs:sortRows(c.subs.map(sb=>({name:subName(sb),_s:sb})),k).map(x=>x._s)}:c));
   let sortItems=k=>setWork(cs=>cs.map(c=>({...c,items:sortRows(c.items,k),...(c.subs?{subs:c.subs.map(sb=>({...sb,items:sortRows(sb.items,k)}))}:{})})));
-  let price=m=>"$"+(parseFloat(m.price)||0).toFixed(2);
-  let listStyle={backgroundColor:"#fff",borderRadius:"12px",border:`1px solid ${q.borderDefault}`};
-  let groupHeader=(c,label,right)=>o.default.createElement("div",{className:"flex items-center gap-2",style:{padding:"0 4px"}},catIcon&&catIcon(c)&&o.default.createElement(catIcon(c),{size:16,color:q.tertiary,className:"shrink-0"}),o.default.createElement("span",{className:"flex-1 text-[12px] font-bold tracking-[0.5px] uppercase",style:{fontFamily:S,color:q.tertiary}},label),o.default.createElement("span",{className:"text-[12px]",style:{fontFamily:S,color:q.tertiary}},right));
-  let rowShell=(J,n,dragging,kids)=>o.default.createElement("div",{className:"w-full flex items-center gap-2 px-4 py-3 bg-white",style:{borderTop:J>0&&!dragging?`1px solid ${q.borderDefault}`:"none",...rowRadius(J,n,11,dragging),boxShadow:dragging?"0 6px 16px rgba(0,0,0,0.18)":"none"}},...kids);
-  let body;
-  if(tab==="categories")body=o.default.createElement(ReorderList,{items:work,getKey:catKey,gap:8,onReorder:arr=>setWork(arr),renderRow:(c,i,handle,dragging)=>{let n=catAllItems(c).length;return o.default.createElement("div",{className:"w-full bg-white rounded-[12px] border flex items-center gap-2 px-4 py-3",style:{borderColor:q.borderDefault,boxShadow:dragging?"0 8px 20px rgba(0,0,0,0.15)":"none"}},handle,
-      catIcon&&catIcon(c)&&o.default.createElement(catIcon(c),{size:18,color:q.body,className:"shrink-0"}),
-      o.default.createElement("span",{className:"flex-1 text-[16px] font-bold",style:{fontFamily:S,color:q.body}},catName(c)),
-      o.default.createElement("span",{className:"text-[14px]",style:{fontFamily:S,color:q.tertiary}},count(n,"item","items")))}});
-  else if(tab==="subcategories")body=o.default.createElement(GroupedReorder,{groups:work.map(c=>({key:catKey(c),items:c.subs||[],_c:c})),getKey:sb=>sb.key,emptyLabel:"Drag subcategories here",
-      onChange:ng=>setWork(cs=>cs.map(c=>{let g=ng.find(x=>x.key===catKey(c));return g?{...c,subs:g.items}:c})),listStyle,
-      renderHeader:g=>groupHeader(g._c,catName(g._c),count(g.items.length,"subcategory","subcategories")),
-      renderItem:(sb,J,n,handle,dragging)=>rowShell(J,n,dragging,[handle,
-        sb.icon&&o.default.createElement(sb.icon,{key:"i",size:18,color:q.body,className:"shrink-0"}),
-        o.default.createElement("span",{key:"n",className:"flex-1 text-[16px]",style:{fontFamily:S,color:q.body}},subName(sb)),
-        o.default.createElement("span",{key:"c",className:"text-[14px]",style:{fontFamily:S,color:q.tertiary}},count(sb.items.length,"item","items"))])});
-  else body=o.default.createElement(GroupedReorder,{groups:work.flatMap(c=>[...(ownSection.current.has(catKey(c))?[{key:"c:"+catKey(c),items:c.items,_c:c,_label:catName(c)}]:[]),...(c.subs||[]).map(sb=>({key:"s:"+sb.key,items:sb.items,_c:c,_label:catName(c)+" › "+subName(sb)}))]),getKey:itemKey,
-      onChange:ng=>setWork(cs=>cs.map(c=>{let g=ng.find(x=>x.key==="c:"+catKey(c)),nc=g?{...c,items:g.items}:c;return c.subs?{...nc,subs:c.subs.map(sb=>{let gs=ng.find(x=>x.key==="s:"+sb.key);return gs?{...sb,items:gs.items}:sb})}:nc})),listStyle,
-      renderHeader:g=>groupHeader(g._c,g._label,count(g.items.length,"item","items")),
-      renderItem:(m,J,n,handle,dragging)=>rowShell(J,n,dragging,[handle,
-        o.default.createElement("span",{key:"n",className:"flex-1 text-[16px]",style:{fontFamily:S,color:q.body,opacity:m.excluded?.45:1}},m.name),
-        o.default.createElement("span",{key:"p",className:"text-[16px]",style:{fontFamily:S,color:q.body,opacity:m.excluded?.45:1}},price(m))])});
-  let sortCopy={categories:["Sort categories","Rearranges your categories. You can still drag them afterward."],subcategories:["Sort subcategories","Sorts subcategories within each category. You can still drag them afterward."],items:["Sort items","Sorts items within each category and subcategory. You can still drag them afterward."]}[tab];
+  let sortOptions=[["c:az","Categories · A to Z"],["c:za","Categories · Z to A"],...(hasSubs?[["s:az","Subcategories · A to Z"],["s:za","Subcategories · Z to A"]]:[]),["i:az","Items · A to Z"],["i:za","Items · Z to A"],["i:price-asc","Items · Price low to high"],["i:price-desc","Items · Price high to low"]];
+  let doSort=k=>{let[lvl,mode]=k.split(":");lvl==="c"?sortCats(mode):lvl==="s"?sortSubs(mode):sortItems(mode)};
+  let link=(label,onClick)=>o.default.createElement("button",{type:"button",onClick:onClick,className:"text-[14px] font-semibold active:opacity-60 shrink-0",style:{fontFamily:S,color:q.actionText,padding:"4px 2px"}},label);
   return o.default.createElement(H,{onBack:onCancel,stickyHeader:!0,stickyLabel:"Reorder",footer:o.default.createElement("div",{className:"flex flex-col gap-1"},o.default.createElement(ve,{onClick:()=>onDone(work)},"Done"),o.default.createElement(Ma,{className:"mx-auto",onClick:onCancel},"Cancel"))},
     o.default.createElement(_,{title:"Reorder"}),
-    o.default.createElement("div",{className:"flex flex-col gap-4"},
-      o.default.createElement("div",{className:"flex flex-col gap-3"},
-        o.default.createElement(SegToggle,{value:tab,options:hasSubs?[["categories","Categories"],["subcategories","Subcategories"],["items","Items"]]:[["categories","Categories"],["items","Items"]],onChange:setTab}),
-        o.default.createElement("div",{className:"flex items-center justify-between"},
-          o.default.createElement("span",{className:"text-[13px]",style:{fontFamily:S,color:q.tertiary}},"Drag to reorder"),
+    o.default.createElement("div",{className:"flex flex-col gap-3"},
+      o.default.createElement("div",{className:"flex items-center justify-between"},
+        o.default.createElement("span",{className:"text-[13px]",style:{fontFamily:S,color:q.tertiary}},"Drag to reorder"),
+        o.default.createElement("div",{className:"flex items-center gap-4"},
+          link(allOpen?"Collapse all":"Expand all",()=>setOpen(allOpen?new Set():new Set(openKeys(work)))),
           o.default.createElement(SortButton,{onClick:()=>setSortOpen(!0)}))),
-      body),
-    o.default.createElement(ReorderSortSheet,{open:sortOpen,onClose:()=>setSortOpen(!1),title:sortCopy[0],subtitle:sortCopy[1],options:tab==="items"?[...SortOpts.name,...SortOpts.price]:SortOpts.name,onSelect:k=>tab==="categories"?sortCats(k):tab==="subcategories"?sortSubs(k):sortItems(k)}));
+      o.default.createElement("div",{ref:rootRef,"data-oc":"cats","data-ock":"c",className:"flex flex-col",style:{gap:"12px"}},work.map(catUnit))),
+    o.default.createElement(ReorderSortSheet,{open:sortOpen,onClose:()=>setSortOpen(!1),title:"Sort",subtitle:"Sorts one level at a time, within each category and subcategory. You can still drag afterward.",options:sortOptions,onSelect:doSort}));
 }
 
 function ConfirmSheet({open,onClose,onConfirm,title,message,confirmLabel}){
