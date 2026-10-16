@@ -284,7 +284,7 @@ function s1({onDone:e,onBack:r}){
 
   if(phase==="confirmation")return o.default.createElement(Ar,null,o.default.createElement("div",{className:"w-full flex flex-col",style:{minHeight:"calc(var(--rvh) * 100)",backgroundColor:q.bg}},o.default.createElement("div",{className:"flex-1 flex flex-col items-center justify-center gap-5 px-6 text-center"},o.default.createElement("svg",{width:72,height:72,viewBox:"0 0 72 72",fill:"none"},o.default.createElement("circle",{cx:36,cy:36,r:36,fill:q.success}),o.default.createElement("path",{d:"M22 37 L31.5 46.5 L51 25",stroke:"#fff",strokeWidth:4,strokeLinecap:"round",strokeLinejoin:"round"})),o.default.createElement("div",{className:"flex flex-col gap-1"},o.default.createElement("div",{className:"text-[28px] leading-[34px] font-medium",style:{fontFamily:S,color:q.headings}},"Application complete!"),o.default.createElement("div",{className:"text-[16px]",style:{fontFamily:S,color:q.body}},"We’ve emailed you a copy of your signed application. You’ll receive a confirmation code once your account is verified."))),o.default.createElement("div",{className:"px-6 pt-3 pb-6"},o.default.createElement(ve,{onClick:e},"Continue"))));
 
-  if(phase==="business")return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:r,stickyHeader:!0,stickyLabel:"Business information",footer:o.default.createElement(ve,{onClick:()=>setPhase("owner")},"Next: Owner information")},
+  if(phase==="business")return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:r,stickyHeader:!0,stickyLabel:"New processing account",footer:o.default.createElement(ve,{onClick:()=>setPhase("owner")},"Next: Owner information")},
     o.default.createElement(StepEyebrow,{step:1,total:5,label:"Business information"}),
     o.default.createElement("div",{className:"flex flex-col gap-4"},
       o.default.createElement(ye,{label:"DBA name",required:!0,value:dba,onChange:setDba}),
@@ -345,7 +345,7 @@ function s1({onDone:e,onBack:r}){
     )
   ));
 
-  if(phase==="owner")return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("business"),stickyHeader:!0,stickyLabel:"Owner information",footer:o.default.createElement(ve,{onClick:()=>setPhase("processing")},"Next: Processing & volume")},
+  if(phase==="owner")return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("business"),stickyHeader:!0,stickyLabel:"New processing account",footer:o.default.createElement(ve,{onClick:()=>setPhase("processing")},"Next: Processing & volume")},
     o.default.createElement(StepEyebrow,{step:2,total:5,label:"Owner information"}),
     o.default.createElement("div",{className:"flex flex-col gap-4"},
       o.default.createElement(SectionLabel,null,"Primary owner"),
@@ -394,7 +394,7 @@ function s1({onDone:e,onBack:r}){
     o.default.createElement("button",{type:"button",onClick:addOwner,className:"w-full flex items-center justify-center gap-2 rounded-[10px] active:opacity-70",style:{height:"52px",border:`1px solid ${q.action}`,fontFamily:S,color:q.action,fontSize:"14px",fontWeight:600}},o.default.createElement(PlusIco,{size:16,color:q.action}),"Add additional owner")
   ));
 
-  if(phase==="processing")return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("owner"),stickyHeader:!0,stickyLabel:"Processing & volume",footer:o.default.createElement(ve,{onClick:()=>setPhase("docs")},"Next: Supporting documentation")},
+  if(phase==="processing")return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("owner"),stickyHeader:!0,stickyLabel:"New processing account",footer:o.default.createElement(ve,{onClick:()=>setPhase("docs")},"Next: Supporting documentation")},
     o.default.createElement(StepEyebrow,{step:3,total:5,label:"Processing & volume"}),
     o.default.createElement("div",{className:"flex flex-col gap-4"},
       o.default.createElement(SectionLabel,null,"Annual sales volume"),
@@ -427,7 +427,7 @@ function s1({onDone:e,onBack:r}){
 
   if(phase==="docs"){
     let docs=[["ein","EIN / Tax ID"],["articles","Articles of Incorporation"],["fictitious","Fictitious Name Certificate"],["taxExempt","Tax Exemption Form"],["form501c","Form 501c"],["ebtFns","EBT State FNS Number"],["other","Other"]];
-    return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("processing"),stickyHeader:!0,stickyLabel:"Supporting documentation",footer:o.default.createElement(ve,{onClick:()=>setPhase("esign")},"Next: Review & sign")},
+    return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("processing"),stickyHeader:!0,stickyLabel:"New processing account",footer:o.default.createElement(ve,{onClick:()=>setPhase("esign")},"Next: Review & sign")},
       o.default.createElement(StepEyebrow,{step:4,total:5,label:"Supporting documentation"}),
       o.default.createElement("div",{className:"flex flex-col gap-4"},
         o.default.createElement(SectionLabel,null,"Additional documentation"),
@@ -438,7 +438,7 @@ function s1({onDone:e,onBack:r}){
 
   if(phase==="esign"){
     let summaryRows=[["Business (DBA)",dba],["Legal name",legalName],["Owner",ownerFullName],["Ownership",ownershipPct+"%"],["Gross annual sales","$"+(grossAnnualSales||"0")]];
-    return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("docs"),stickyHeader:!0,stickyLabel:"Review & sign",footer:o.default.createElement(ve,{onClick:()=>setPhase("loading"),disabled:!canSign},"Sign & submit application")},
+    return o.default.createElement(Ar,null,o.default.createElement(H,{onBack:()=>setPhase("docs"),stickyHeader:!0,stickyLabel:"New processing account",footer:o.default.createElement(ve,{onClick:()=>setPhase("loading"),disabled:!canSign},"Sign & submit application")},
       o.default.createElement(StepEyebrow,{step:5,total:5,label:"Review & sign"}),
       o.default.createElement("div",{className:"flex flex-col gap-3 rounded-[14px] p-4",style:{border:`1px solid ${q.borderDefault}`,backgroundColor:q.page}},
         summaryRows.map(([label,val])=>o.default.createElement("div",{key:label,className:"flex items-center justify-between gap-3"},
